@@ -3,6 +3,27 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchtyping import TensorType
 
+class MultiHeadedSelfAttention(nn.Module):
+
+    def __init__(self, embedding_dim: int, attention_dim: int, num_heads: int):
+        super().__init__()
+        torch.manual_seed(0)
+        # Create num_heads SingleHeadAttention instances using nn.ModuleList
+        # Each head size = attention_dim // num_heads
+        # Use: self.SingleHeadAttention(embedding_dim, head_size)
+        # After the heads, add an output projection: nn.Linear(attention_dim, attention_dim, bias=False)
+        head_size = attention_dim // num_heads
+        self.heads = nn.ModuleList([SingleHeadAttention(embedding_dim, head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(attention_dim, attention_dim, bias=False)
+        
+    def forward(self, embedded: TensorType[float]) -> TensorType[float]:
+        # Run each head on the input, concatenate outputs along dim=2
+        # Pass concatenated result through the output projection (W_O)
+        # Return result rounded to 4 decimal places
+        out = torch.cat([h(embedded) for h in self.heads], dim=-1)
+        out = self.proj(out)
+        return torch.round(out, decimals=4)
+
 class SingleHeadAttention(nn.Module):
 
     def __init__(self, embedding_dim: int, attention_dim: int):
@@ -37,4 +58,4 @@ class SingleHeadAttention(nn.Module):
         scores = F.softmax(scores, dim=-1) #softmax across the context length dimension
         attn = scores @ V
 
-        return torch.round(attn, decimals = 4)
+        return attn
